@@ -25,6 +25,7 @@ import net.minecraft.util.text.StringTextComponent;
 import net.minecraft.util.text.TextFormatting;
 import net.minecraft.util.text.TranslationTextComponent;
 import net.minecraftforge.common.capabilities.ICapabilityProvider;
+import net.minecraftforge.common.util.LazyOptional;
 import net.minecraftforge.energy.CapabilityEnergy;
 import net.minecraftforge.energy.IEnergyStorage;
 
@@ -118,6 +119,27 @@ public abstract class GadgetGeneric extends Item {
             }
         }
         return heldItem;
+    }
+
+    /**
+     * This is used to get the right value of stored energy from either the
+     * Energy Cap or the durability
+     *
+     * @implNote I've removed this from the isCreative() check (energy.isPresent() && !stack.isDamageable()) as
+     *           I can not see what it is logically doing. If this is important then please add back.
+     *
+     * @implNote remove when we change over to just FE
+     * @since 1.14-3.0.0
+     */
+    public static int getStoredEnergy(PlayerEntity player, ItemStack tool) {
+        if( player.isCreative() )
+            return Integer.MAX_VALUE;
+
+        LazyOptional<IEnergyStorage> energy = EnergyUtil.getCap(tool);
+        if (energy.isPresent())
+            return energy.orElseThrow(CapabilityNotPresentException::new).getEnergyStored();
+
+        return tool.getMaxDamage() - tool.getDamage();
     }
 
     public boolean canUse(ItemStack tool, PlayerEntity player) {

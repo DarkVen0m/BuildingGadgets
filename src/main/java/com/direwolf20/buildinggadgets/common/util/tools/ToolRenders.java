@@ -2,7 +2,7 @@ package com.direwolf20.buildinggadgets.common.util.tools;
 
 import com.direwolf20.buildinggadgets.client.RemoteInventoryCache;
 import com.direwolf20.buildinggadgets.common.BuildingGadgets;
-import com.direwolf20.buildinggadgets.common.items.gadgets.GadgetBuilding;
+import com.direwolf20.buildinggadgets.common.items.gadgets.building.GadgetBuilding;
 import com.direwolf20.buildinggadgets.common.items.gadgets.GadgetCopyPaste;
 import com.direwolf20.buildinggadgets.common.items.gadgets.GadgetDestruction;
 import com.direwolf20.buildinggadgets.common.items.gadgets.GadgetGeneric;
@@ -108,10 +108,9 @@ public class ToolRenders {
         List<BlockPos> coordinates = getAnchor(stack);
         if (lookingAt != null || coordinates.size() > 0) {
             World world = player.world;
-            BlockState startBlock = Blocks.AIR.getDefaultState();
-            if (!(lookingAt == null)) {
-                startBlock = world.getBlockState(lookingAt.getPos());
-            }
+
+            BlockState startBlock = world.getBlockState(lookingAt.getPos());
+
             if (startBlock != BGBlocks.effectBlock.getDefaultState()) {
 
                 BlockState renderBlockState = getToolBlock(heldItem);
@@ -122,6 +121,7 @@ public class ToolRenders {
                     coordinates = BuildingMode
                             .collectPlacementPos(world, player, lookingAt.getPos(), lookingAt.getFace(), heldItem, lookingAt.getPos());
                 }
+                // here
 
                 //Figure out how many of the block we're rendering we have in the inventory of the player.
                 ItemStack itemStack;
@@ -137,6 +137,7 @@ public class ToolRenders {
 
                 long hasBlocks = InventoryHelper.countItem(itemStack, player, cacheInventory);
                 hasBlocks = hasBlocks + InventoryHelper.countPaste(player);
+
                 int hasEnergy = 0;
                 LazyOptional<IEnergyStorage> energy = EnergyUtil.getCap(stack);
                 if (energy.isPresent()) {

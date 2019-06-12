@@ -7,6 +7,7 @@ import com.direwolf20.buildinggadgets.common.util.helpers.InventoryHelper;
 import com.direwolf20.buildinggadgets.common.util.helpers.SortingHelper;
 import com.direwolf20.buildinggadgets.common.util.tools.AbstractToolRender;
 import com.mojang.blaze3d.platform.GlStateManager;
+import com.sun.javafx.geom.Vec3f;
 import net.minecraft.block.BlockState;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.ItemStack;
@@ -21,27 +22,24 @@ import java.util.List;
 
 public class GadgetBuildingRender extends AbstractToolRender {
     @Override
-    public void render(PlayerEntity player, ItemStack tool, float partialTick) {
-        ItemStack heldItem = GadgetBuilding.getGadget(player);
-        if (heldItem.isEmpty()) return;
-
-        super.render(player, tool, partialTick);
+    public void render(ItemStack tool, float partialTick) {
+        super.render(tool, partialTick);
 
         BlockState toolBlock = GadgetUtils.getToolBlock(tool);
 
-        PlayerPos playerPos = new PlayerPos(player, partialTick);
-        List<BlockPos> coordinates = getCoordinates(toolBlock, player, heldItem);
+        PlayerPos playerPos = new PlayerPos(getPlayer(), partialTick);
+        List<BlockPos> coordinates = getCoordinates(toolBlock, getPlayer(), tool);
         if( coordinates.size() == 0 )
             return;
 
-        ItemStack stack = this.getItemFromBlock(toolBlock, player);
-        int toolEnergy  = ((GadgetGeneric) heldItem.getItem()).getStoredEnergy(player, tool);
-        long hasBlocks  = InventoryHelper.countItemWithPaste(heldItem, player, getCacheInventory());
+        ItemStack stack = this.getItemFromBlock(toolBlock, getPlayer());
+        int toolEnergy  = ((GadgetGeneric) tool.getItem()).getStoredEnergy(getPlayer(), tool);
+        long hasBlocks  = InventoryHelper.countItemWithPaste(stack, getPlayer(), getCacheInventory());
 
-        List<BlockPos> sortedCoordinates = this.sort(coordinates, player);
+        List<BlockPos> sortedCoordinates = this.sort(coordinates, getPlayer());
 
         // Prepare our fake world.
-        getFakeWorld().setWorldAndState(player.world, toolBlock, coordinates);
+        getFakeWorld().setWorldAndState(getPlayer().world, toolBlock, coordinates);
 
         // Prepare our render
         GlStateManager.pushMatrix();
@@ -57,16 +55,17 @@ public class GadgetBuildingRender extends AbstractToolRender {
         });
 
         // Finally show any blocks that can't be built by overlaying a red overlay on them.
-        LazyOptional<IEnergyStorage> energy = CapabilityUtil.EnergyUtil.getCap(heldItem);
+        LazyOptional<IEnergyStorage> energy = CapabilityUtil.EnergyUtil.getCap(tool);
+
         for(BlockPos pos: coordinates) {
             hasBlocks--;
             if (energy.isPresent())
-                toolEnergy -= ((GadgetGeneric) heldItem.getItem()).getEnergyCost(heldItem);
+                toolEnergy -= ((GadgetGeneric) tool.getItem()).getEnergyCost(tool);
             else
-                toolEnergy -= ((GadgetGeneric) heldItem.getItem()).getDamageCost(heldItem);
+                toolEnergy -= ((GadgetGeneric) tool.getItem()).getDamageCost(tool);
 
             if (hasBlocks < 0 || toolEnergy < 0)
-                RenderTools.renderBlock(HighlightColors.RED.getColor(), pos, .55f, RenderTools.DEFAUTL_SCALE, null);
+                RenderTools.renderBlock(HighlightColors.RED.getColor(), pos, .35f, new Vec3f(1.01f, 1.01f, 1.01f), new Vec3f(-.005f, -.005f, .005f));
         }
 
         GlStateManager.blendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);

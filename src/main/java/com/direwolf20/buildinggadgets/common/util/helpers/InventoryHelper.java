@@ -159,8 +159,8 @@ public class InventoryHelper {
      * paste into the calculation. Mostly used for renders but also
      * helpful for other parts of the code.
      */
-    public static long countItemWithPaste(ItemStack tool, PlayerEntity player, IRemoteInventoryProvider remoteInventory) {
-        long blocks = countItem(tool, player, remoteInventory);
+    public static long countItemWithPaste(ItemStack item, PlayerEntity player, IRemoteInventoryProvider remoteInventory) {
+        long blocks = countItem(item, player, remoteInventory);
         return blocks + countPaste(player);
     }
 

@@ -27,7 +27,7 @@ public class EventRenderWorldLast {
         }
 
         if (heldItem.getItem() instanceof GadgetBuilding) {
-            builderRender.render(player, heldItem, evt.getPartialTicks());
+            builderRender.render(heldItem, evt.getPartialTicks());
         } else if (heldItem.getItem() instanceof GadgetExchanger) {
             ToolRenders.renderExchangerOverlay(evt, player, heldItem);
         } else if (heldItem.getItem() instanceof GadgetCopyPaste) {

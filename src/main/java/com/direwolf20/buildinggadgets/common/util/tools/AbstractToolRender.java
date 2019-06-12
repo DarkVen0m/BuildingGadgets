@@ -37,11 +37,11 @@ public abstract class AbstractToolRender {
 
     private static final FakeBuilderWorld fakeWorld = new FakeBuilderWorld();
 
-    public void render(PlayerEntity player, ItemStack tool, float partialTick) {
-        PlayerPos playerPos = new PlayerPos(player, partialTick);
+    public void render(ItemStack tool, float partialTick) {
+        PlayerPos playerPos = new PlayerPos(getPlayer(), partialTick);
 
         if( this.canLinkInventories() )
-            this.renderLinkedInventory(tool, player.dimension, playerPos);
+            this.renderLinkedInventory(tool, getPlayer().dimension, playerPos);
     }
 
     /**
@@ -106,8 +106,6 @@ public abstract class AbstractToolRender {
         GlStateManager.scalef(1.01f, 1.01f, 1.01f);
 
         RenderTools.renderHighlight(HighlightColors.YELLOW);
-
-        getMinecraft().getBlockRendererDispatcher().renderBlockBrightness(Blocks.YELLOW_STAINED_GLASS.getDefaultState(), 1f);
         GlStateManager.popMatrix();
     }
 
@@ -137,16 +135,20 @@ public abstract class AbstractToolRender {
         return cacheInventory;
     }
 
-    public static BlockRenderLayer getRenderLayer() {
+    protected static BlockRenderLayer getRenderLayer() {
         return MinecraftForgeClient.getRenderLayer();
     }
 
-    private static Minecraft getMinecraft() {
+    protected static Minecraft getMinecraft() {
         return minecraft;
     }
 
     protected static FakeBuilderWorld getFakeWorld() {
         return fakeWorld;
+    }
+
+    protected static PlayerEntity getPlayer() {
+        return getMinecraft().player;
     }
 
     protected static class RenderTools {

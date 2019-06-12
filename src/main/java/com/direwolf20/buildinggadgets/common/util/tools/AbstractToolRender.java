@@ -7,8 +7,10 @@ import com.direwolf20.buildinggadgets.common.util.helpers.InventoryHelper;
 import com.direwolf20.buildinggadgets.common.util.helpers.VectorHelper;
 import com.direwolf20.buildinggadgets.common.util.ref.NBTKeys;
 import com.direwolf20.buildinggadgets.common.util.tools.modes.BuildingMode;
+import com.direwolf20.buildinggadgets.common.world.FakeBuilderWorld;
 import com.google.common.collect.Multiset;
 import com.mojang.blaze3d.platform.GlStateManager;
+import com.sun.javafx.geom.Vec3f;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.client.Minecraft;
@@ -23,14 +25,17 @@ import net.minecraft.world.dimension.DimensionType;
 import net.minecraftforge.client.MinecraftForgeClient;
 import org.lwjgl.opengl.GL14;
 
+import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.List;
 
 public abstract class AbstractToolRender {
-    private static final BlockState BASE_STATE = Blocks.AIR.getDefaultState();
+    protected static final BlockState BASE_STATE = Blocks.AIR.getDefaultState();
 
     private static Minecraft minecraft = Minecraft.getInstance();
     private static RemoteInventoryCache cacheInventory = new RemoteInventoryCache(false);
+
+    private static final FakeBuilderWorld fakeWorld = new FakeBuilderWorld();
 
     public void render(PlayerEntity player, ItemStack tool, float partialTick) {
         PlayerPos playerPos = new PlayerPos(player, partialTick);
@@ -64,9 +69,17 @@ public abstract class AbstractToolRender {
      * todo: implement this back in -> renderBlockState.getBlock().canSilkHarvest(renderBlockState, world, new BlockPos(0, 0, 0), player)
      */
     protected ItemStack getItemFromBlock(BlockState toolsBlock, PlayerEntity player) {
-        if( false ) // fixme: we need a way of handling loot tables.
-            return InventoryHelper.getSilkTouchDrop(toolsBlock);
+        ItemStack stack;
 
+        if( false ) // fixme: we need a way of handling loot tables.
+            stack = InventoryHelper.getSilkTouchDrop(toolsBlock);
+        else
+            stack = toolsBlock.getBlock().getPickBlock(toolsBlock, null, player.world, BlockPos.ZERO, player);
+
+        if( !stack.isEmpty() )
+            return stack;
+
+        // Finally ensure that we actually have a block if all else fails.
         return toolsBlock.getBlock().getPickBlock(toolsBlock, null, player.world, BlockPos.ZERO, player);
     }
 
@@ -102,6 +115,17 @@ public abstract class AbstractToolRender {
         return false;
     }
 
+    /**
+     * To be used when sorting is required. If no sorting method is set
+     * from the extending classes, we'll simply return what ever we
+     * are given.
+     *
+     * @param playerEntity is optional as some renders require a player.
+     */
+    public List<BlockPos> sort(List<BlockPos> posList, PlayerEntity playerEntity) {
+        return posList;
+    }
+
     protected static void setInventoryCache(Multiset<UniqueItem> cache) {
         cacheInventory.setCache(cache);
     }
@@ -121,28 +145,50 @@ public abstract class AbstractToolRender {
         return minecraft;
     }
 
-    private static class RenderTools {
-        private static void renderHighlight(HighlightColors color) {
+    protected static FakeBuilderWorld getFakeWorld() {
+        return fakeWorld;
+    }
+
+    protected static class RenderTools {
+        public static final Vec3f DEFAUTL_SCALE = new Vec3f(1f, 1f, 1f);
+
+        public static void renderHighlight(HighlightColors color) {
             getMinecraft().getBlockRendererDispatcher().renderBlockBrightness(color.getColor(), 1f);
         }
 
-        private static void translateFromPlayer(PlayerPos from, BlockPos to) {
+        // todo: this might not be required. Currently only used here.
+        public static void translateFromPlayer(PlayerPos from, BlockPos to) {
             GlStateManager.translated(-from.getPos().x, -from.getPos().y, -from.getPos().z);//The render starts at the player, so we subtract the player coords and move the render to 0,0,0
             GlStateManager.translatef(to.getX(), to.getY(), to.getZ());//Now move the render position to the coordinates we want to render at
         }
 
-        private static void setAlpha(float alpha) {
+        public static void setAlpha(float alpha) {
             GL14.glBlendColor(1F, 1F, 1F, alpha);
         }
 
-        private static void enableBlend() {
+        public static void enableBlend() {
             GlStateManager.enableBlend();
             GlStateManager.blendFunc(GL14.GL_CONSTANT_ALPHA, GL14.GL_ONE_MINUS_CONSTANT_ALPHA);
         }
+
+        public static void renderBlock(BlockState state, BlockPos pos, float alpha, Vec3f scale, @Nullable Vec3f offset) {
+            GlStateManager.pushMatrix();
+            GlStateManager.translatef(pos.getX(), pos.getY(), pos.getZ());
+            GlStateManager.rotatef(-90.0F, 0.0F, 1.0F, 0.0F);
+            GlStateManager.scalef(scale.x, scale.y, scale.z);
+            if( offset != null )
+                GlStateManager.translatef(offset.x, offset.y, offset.z);
+
+            GL14.glBlendColor(1F, 1F, 1F, alpha);
+
+            getMinecraft().getBlockRendererDispatcher().renderBlockBrightness(state, 1f);
+            GlStateManager.popMatrix();
+        }
     }
 
-    private enum HighlightColors {
-        YELLOW(Blocks.YELLOW_STAINED_GLASS.getDefaultState());
+    protected enum HighlightColors {
+        YELLOW(Blocks.YELLOW_STAINED_GLASS.getDefaultState()),
+        RED(Blocks.RED_STAINED_GLASS.getDefaultState());
 
         private BlockState color;
         HighlightColors(BlockState color) {
@@ -161,7 +207,7 @@ public abstract class AbstractToolRender {
         public PlayerPos(PlayerEntity player, float partialTicks) {
             this.pos = new Vec3d(
                 player.lastTickPosX + (player.posX - player.lastTickPosX) * partialTicks,
-                player.lastTickPosY + (player.posY - player.lastTickPosY) * partialTicks,
+                player.lastTickPosY + (player.posY - player.lastTickPosY) * partialTicks + player.getEyeHeight(),
                 player.lastTickPosZ + (player.posZ - player.lastTickPosZ) * partialTicks
             );
         }

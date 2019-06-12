@@ -2,6 +2,7 @@ package com.direwolf20.buildinggadgets.client.events;
 
 import com.direwolf20.buildinggadgets.common.items.gadgets.*;
 import com.direwolf20.buildinggadgets.common.items.gadgets.building.GadgetBuilding;
+import com.direwolf20.buildinggadgets.common.items.gadgets.building.GadgetBuildingRender;
 import com.direwolf20.buildinggadgets.common.util.ref.Reference;
 import com.direwolf20.buildinggadgets.common.util.tools.ToolRenders;
 import net.minecraft.client.Minecraft;
@@ -14,6 +15,7 @@ import net.minecraftforge.fml.common.Mod;
 
 @Mod.EventBusSubscriber(modid = Reference.MODID, value = Dist.CLIENT)
 public class EventRenderWorldLast {
+    private static GadgetBuildingRender builderRender = new GadgetBuildingRender();
 
     @SubscribeEvent
     static void renderWorldLastEvent(RenderWorldLastEvent evt) {
@@ -25,7 +27,7 @@ public class EventRenderWorldLast {
         }
 
         if (heldItem.getItem() instanceof GadgetBuilding) {
-            ToolRenders.renderBuilderOverlay(evt, player, heldItem);
+            builderRender.render(player, heldItem, evt.getPartialTicks());
         } else if (heldItem.getItem() instanceof GadgetExchanger) {
             ToolRenders.renderExchangerOverlay(evt, player, heldItem);
         } else if (heldItem.getItem() instanceof GadgetCopyPaste) {

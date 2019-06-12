@@ -131,7 +131,7 @@ public abstract class GadgetGeneric extends Item {
      * @implNote remove when we change over to just FE
      * @since 1.14-3.0.0
      */
-    public static int getStoredEnergy(PlayerEntity player, ItemStack tool) {
+    public int getStoredEnergy(PlayerEntity player, ItemStack tool) {
         if( player.isCreative() )
             return Integer.MAX_VALUE;
 

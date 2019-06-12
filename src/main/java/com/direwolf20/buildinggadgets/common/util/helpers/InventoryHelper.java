@@ -155,6 +155,16 @@ public class InventoryHelper {
         int countItem(ItemStack tool, ItemStack stack);
     }
 
+    /**
+     * Do the normal countItem but also take the players construction
+     * paste into the calculation. Mostly used for renders but also
+     * helpful for other parts of the code.
+     */
+    public static long countItemWithPaste(ItemStack tool, PlayerEntity player, IRemoteInventoryProvider remoteInventory) {
+        long blocks = countItem(tool, player, remoteInventory);
+        return blocks + countPaste(player);
+    }
+
     public static int countItem(ItemStack itemStack, PlayerEntity player, World world) {
         return countItem(itemStack, player, (tool, stack) -> {
             IItemHandler remoteInventory = GadgetUtils.getRemoteInventory(tool, world);

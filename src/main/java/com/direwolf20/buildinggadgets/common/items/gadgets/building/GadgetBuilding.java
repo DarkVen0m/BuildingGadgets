@@ -1,15 +1,12 @@
 package com.direwolf20.buildinggadgets.common.items.gadgets.building;
 
-import com.direwolf20.buildinggadgets.api.Registries;
-import com.direwolf20.buildinggadgets.api.abstraction.BlockData;
 import com.direwolf20.buildinggadgets.api.building.IAtopPlacingGadget;
 import com.direwolf20.buildinggadgets.common.config.Config;
 import com.direwolf20.buildinggadgets.common.entities.BlockBuildEntity;
 import com.direwolf20.buildinggadgets.common.items.gadgets.GadgetGeneric;
 import com.direwolf20.buildinggadgets.common.registry.objects.BGBlocks;
 import com.direwolf20.buildinggadgets.common.registry.objects.BGItems;
-import com.direwolf20.buildinggadgets.common.util.CapabilityUtil;
-import com.direwolf20.buildinggadgets.common.util.exceptions.CapabilityNotPresentException;
+import com.direwolf20.buildinggadgets.common.util.UnnamedCompat;
 import com.direwolf20.buildinggadgets.common.util.helpers.InventoryHelper;
 import com.direwolf20.buildinggadgets.common.util.helpers.NBTHelper;
 import com.direwolf20.buildinggadgets.common.util.helpers.SortingHelper;
@@ -22,6 +19,7 @@ import com.direwolf20.buildinggadgets.common.util.tools.ToolRenders;
 import com.direwolf20.buildinggadgets.common.util.tools.UndoState;
 import com.direwolf20.buildinggadgets.common.util.tools.modes.BuildingMode;
 import com.direwolf20.buildinggadgets.common.world.FakeBuilderWorld;
+import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.client.util.ITooltipFlag;
 import net.minecraft.enchantment.Enchantments;
@@ -39,9 +37,9 @@ import net.minecraft.util.text.StringTextComponent;
 import net.minecraft.util.text.TextFormatting;
 import net.minecraft.util.text.TranslationTextComponent;
 import net.minecraft.world.World;
+import net.minecraft.world.WorldType;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.common.util.BlockSnapshot;
-import net.minecraftforge.energy.IEnergyStorage;
 import net.minecraftforge.event.ForgeEventFactory;
 import net.minecraftforge.event.world.BlockEvent;
 
@@ -108,7 +106,7 @@ public class GadgetBuilding extends GadgetGeneric implements IAtopPlacingGadget 
     public void addInformation(ItemStack stack, @Nullable World world, List<ITextComponent> tooltip, ITooltipFlag flag) {
         super.addInformation(stack, world, tooltip, flag);
         tooltip.add(TooltipTranslation.GADGET_BLOCK
-                .componentTranslation(LangUtil.getFormattedBlockName(getToolBlock(stack).getState()))
+                            .componentTranslation(LangUtil.getFormattedBlockName(getToolBlock(stack)))
                             .setStyle(Styles.DK_GREEN));
         BuildingMode mode = getToolMode(stack);
         tooltip.add(TooltipTranslation.GADGET_MODE
@@ -137,9 +135,6 @@ public class GadgetBuilding extends GadgetGeneric implements IAtopPlacingGadget 
     public ActionResult<ItemStack> onItemRightClick(World world, PlayerEntity player, Hand hand) {
         //On item use, if sneaking, select the block clicked on, else build -- This is called when you right click a tool NOT on a block.
         ItemStack itemstack = player.getHeldItem(hand);
-        // @todo: remove once we go live - debug code to add free energy to tool
-        IEnergyStorage energy = CapabilityUtil.EnergyUtil.getCap(itemstack).orElseThrow(CapabilityNotPresentException::new);
-        energy.receiveEnergy(100000, false);
         /*CompoundNBT tagCompound = itemstack.getTag();
         ByteBuf buf = Unpooled.buffer(16);
         ByteBufUtils.writeTag(buf,tagCompound);
@@ -188,7 +183,7 @@ public class GadgetBuilding extends GadgetGeneric implements IAtopPlacingGadget 
 
         if (coords.size() == 0) {  //If we don't have an anchor, build in the current spot
             RayTraceResult lookingAt = VectorHelper.getLookingAt(player, stack);
-            if (lookingAt == null || (world.getBlockState(VectorHelper.getLookingAt(player, stack).getPos()) == Blocks.AIR.getDefaultState())) { //If we aren't looking at anything, exit
+            if (lookingAt == null) { //If we aren't looking at anything, exit
                 return false;
             }
             BlockPos startBlock = ((BlockRayTraceResult) lookingAt).getPos();
@@ -203,16 +198,23 @@ public class GadgetBuilding extends GadgetGeneric implements IAtopPlacingGadget 
         if (heldItem.isEmpty())
             return false;
 
-        BlockData blockData = getToolBlock(heldItem);
+        BlockState blockState = getToolBlock(heldItem);
 
-        if (blockData.getState() != Blocks.AIR.getDefaultState()) { //Don't attempt a build if a block is not chosen -- Typically only happens on a new tool.
-            //TODO replace with a better TileEntity supporting Fake IWorld
-            fakeWorld.setWorldAndState(player.world, blockData.getState(), coords); // Initialize the fake world's blocks
+        if (blockState != Blocks.AIR.getDefaultState()) { //Don't attempt a build if a block is not chosen -- Typically only happens on a new tool.
+            BlockState state = Blocks.AIR.getDefaultState(); //Initialize a new State Variable for use in the fake world
+            fakeWorld.setWorldAndState(player.world, blockState, coords); // Initialize the fake world's blocks
             for (BlockPos coordinate : coords) {
+                if (fakeWorld.getWorldType() != WorldType.DEBUG_ALL_BLOCK_STATES) {
+                    try { //Get the state of the block in the fake world (This lets fences be connected, etc)
+// @todo: reimplement @since 1.13.x
+                        state = blockState.getExtendedState(fakeWorld, coordinate);
+                    } catch (Exception var8) {
+                    }
+                }
                 //Get the extended block state in the fake world
                 //Disabled to fix Chisel
                 //state = state.getBlock().getExtendedState(state, fakeWorld, coordinate);
-                if (placeBlock(world, player, coordinate, blockData)) {
+                if (placeBlock(world, player, coordinate, state)) {
                     undoCoords.add(coordinate);//If we successfully place the block, add the location to the undo list.
                 }
             }
@@ -238,7 +240,7 @@ public class GadgetBuilding extends GadgetGeneric implements IAtopPlacingGadget 
         }
         World world = player.world;
         if (!world.isRemote) {
-            BlockData currentBlock = BlockData.AIR;
+            BlockState currentBlock = Blocks.AIR.getDefaultState();
             List<BlockPos> undoCoords = undoState.coordinates; //Get the Coords to undo
 
             List<BlockPos> failedRemovals = new ArrayList<BlockPos>(); //Build a list of removals that fail
@@ -246,17 +248,17 @@ public class GadgetBuilding extends GadgetGeneric implements IAtopPlacingGadget 
             silkTool.addEnchantment(Enchantments.SILK_TOUCH, 1);
             boolean sameDim = player.dimension == undoState.dimension;
             for (BlockPos coord : undoCoords) {
-                currentBlock = Registries.TileEntityData.createBlockData(world, coord);
+                currentBlock = world.getBlockState(coord);
 
                 double distance = coord.distanceSq(player.getPosition());
 
-                BlockEvent.BreakEvent e = new BlockEvent.BreakEvent(world, coord, currentBlock.getState(), player);
+                BlockEvent.BreakEvent e = new BlockEvent.BreakEvent(world, coord, currentBlock, player);
                 boolean cancelled = MinecraftForge.EVENT_BUS.post(e);
 
-                if (distance < 64 && sameDim && currentBlock.getState() != BGBlocks.effectBlock.getDefaultState() && ! cancelled) { //Don't allow us to undo a block while its still being placed or too far away
-                    if (currentBlock.getState() != Blocks.AIR.getDefaultState()) {
-                        currentBlock.getState().getBlock().harvestBlock(world, player, coord, currentBlock.getState(), world.getTileEntity(coord), silkTool);
-                        world.addEntity(new BlockBuildEntity(world, coord, currentBlock, BlockBuildEntity.Mode.REMOVE, false));
+                if (distance < 64 && sameDim && currentBlock != BGBlocks.effectBlock.getDefaultState() && !cancelled) { //Don't allow us to undo a block while its still being placed or too far away
+                    if (currentBlock != Blocks.AIR.getDefaultState()) {
+                        currentBlock.getBlock().harvestBlock(world, player, coord, currentBlock, world.getTileEntity(coord), silkTool);
+                        UnnamedCompat.World.spawnEntity(world, new BlockBuildEntity(world, coord, player, currentBlock, BlockBuildEntity.Mode.REMOVE, false));
                     }
                 } else { //If you're in the wrong dimension or too far away, fail the undo.
                     player.sendStatusMessage(new StringTextComponent(TextFormatting.RED + new TranslationTextComponent("message.gadget.undofailed").getUnformattedComponentText()), true);
@@ -271,7 +273,7 @@ public class GadgetBuilding extends GadgetGeneric implements IAtopPlacingGadget 
         return true;
     }
 
-    private boolean placeBlock(World world, ServerPlayerEntity player, BlockPos pos, BlockData setBlock) {
+    private boolean placeBlock(World world, ServerPlayerEntity player, BlockPos pos, BlockState setBlock) {
         if (!player.isAllowEdit())
             return false;
 
@@ -283,12 +285,12 @@ public class GadgetBuilding extends GadgetGeneric implements IAtopPlacingGadget 
 
         ItemStack itemStack;
         if (true/*setBlock.getBlock().canSilkHarvest(setBlock, world, pos, player)*/) {//TODO figure LootTables out
-            itemStack = InventoryHelper.getSilkTouchDrop(setBlock.getState());
+            itemStack = InventoryHelper.getSilkTouchDrop(setBlock);
         } else {
-            itemStack = setBlock.getState().getBlock().getPickBlock(setBlock.getState(), null, world, pos, player);
+            itemStack = setBlock.getBlock().getPickBlock(setBlock, null, world, pos, player);
         }
         if (itemStack.getItem().equals(Items.AIR)) {
-            itemStack = setBlock.getState().getBlock().getPickBlock(setBlock.getState(), null, world, pos, player);
+            itemStack = setBlock.getBlock().getPickBlock(setBlock, null, world, pos, player);
         }
 
         NonNullList<ItemStack> drops = NonNullList.create();
@@ -333,7 +335,7 @@ public class GadgetBuilding extends GadgetGeneric implements IAtopPlacingGadget 
             useItemSuccess = InventoryHelper.useItem(itemStack, player, neededItems, world);
         }
         if (useItemSuccess) {
-            world.addEntity(new BlockBuildEntity(world, pos, setBlock, BlockBuildEntity.Mode.PLACE, useConstructionPaste));
+            UnnamedCompat.World.spawnEntity(world, new BlockBuildEntity(world, pos, player, setBlock, BlockBuildEntity.Mode.PLACE, useConstructionPaste));
             return true;
         }
         return false;

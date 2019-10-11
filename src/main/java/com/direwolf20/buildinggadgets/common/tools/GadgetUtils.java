@@ -6,6 +6,7 @@ import com.direwolf20.buildinggadgets.common.integration.NetworkProvider;
 import com.direwolf20.buildinggadgets.common.items.gadgets.GadgetBuilding;
 import com.direwolf20.buildinggadgets.common.items.gadgets.GadgetExchanger;
 import com.direwolf20.buildinggadgets.common.network.PacketRotateMirror;
+import com.feed_the_beast.ftbutilities.data.ClaimedChunks;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
 import com.google.common.collect.HashMultiset;
@@ -341,6 +342,9 @@ public class GadgetUtils {
 
     public static boolean setRemoteInventory(EntityPlayer player, ItemStack tool, BlockPos pos, int dim, World world) {
         if (getRemoteInventory(pos, dim, world, player) != null) {
+            if(ClaimedChunks.blockBlockInteractions(player, pos, null)){
+                return false;
+            }
             boolean same = pos.equals(getPOSFromNBT(tool, "boundTE"));
             writePOSToNBT(tool, same ? null : pos, "boundTE", dim);
             player.sendStatusMessage(new TextComponentString(TextFormatting.AQUA + new TextComponentTranslation("message.gadget." + (same ? "unboundTE" : "boundTE")).getUnformattedComponentText()), true);

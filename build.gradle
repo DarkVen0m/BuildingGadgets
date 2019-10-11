@@ -5,7 +5,6 @@ buildscript {
     }
     dependencies {
         classpath 'net.minecraftforge.gradle:ForgeGradle:2.3-SNAPSHOT'
-
     }
 }
 apply plugin: 'net.minecraftforge.gradle.forge'
@@ -42,6 +41,10 @@ repositories {
         url "https://maven.tterrag.com/"
     }
     maven {
+        name "ActuallyAdditions Maven" // CTM
+        url "https://maven.chaosfield.at/"
+    }
+    maven {
         name "Raoulvdberge Repo" // RS
         url "https://repo.raoulvdberge.com/"
     }
@@ -58,10 +61,6 @@ repositories {
         url = "https://maven.covers1624.net/"
     }
     maven {
-        name = "Mod Maven" // AA
-        url = "https://modmaven.k-4u.nl/"
-    }
-    maven {
         name "Jared's Repo" // EI
         url "https://maven.blamejared.com/"
     }
@@ -76,6 +75,7 @@ repositories {
 }
 
 dependencies {
+    compile files('lib/FTBUtilities-5.4.0.106.jar')
     runtime "cofh:RedstoneFlux:1.12-${rf_version}:universal"
     runtime "team.chisel.ctm:CTM:MC${minecraft_version}-${ctm_version}"
     deobfCompile "team.chisel.ctm:CTM:MC${minecraft_version}-${ctm_version}:api"
